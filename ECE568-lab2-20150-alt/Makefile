@@ -5,7 +5,7 @@ LDFLAGS := $(LIBS)
 RM := rm -f
 
 sources := client.c server.c myLib.c utility.c clientManager.c
-targets := client server 
+targets := client server serverNoSSLv3NoTSLv1 serverMD5
 
 .PHONY: clean default all
 
@@ -17,6 +17,12 @@ client: client.o myLib.o utility.o
 
 server: server.o myLib.o utility.o clientManager.o
 	$(CC) $(LDFLAGS) -o server server.o myLib.o utility.o clientManager.o
+
+serverNoSSLv3NoTSLv1: server.o myLib.o utility.o clientManagerNoSSLv3NoTSLv1.o
+	$(CC) $(LDFLAGS) -o serverNoSSLv3NoTSLv1 server.o myLib.o utility.o clientManagerNoSSLv3NoTSLv1.o	
+	
+serverMD5: server.o myLib.o utility.o clientManagerMD5.o
+	$(CC) $(LDFLAGS) -o serverMD5 server.o myLib.o utility.o clientManagerMD5.o		
 
 client.o: client.c client.h
 	$(CC) $(CFLAGS) -c -o client.o client.c
@@ -30,8 +36,11 @@ myLib.o: myLib.c myLib.h
 utility.o: utility.c utility.h
 	$(CC) $(CFLAGS) -c -o utility.o utility.c
 
-clientManager.o: clientManager.c clientManager.h
-	$(CC) $(CFLAGS) -c -o clientManager.o clientManager.c
+clientManagerNoSSLv3NoTSLv1.o: clientManager.c clientManager.h
+	$(CC) $(CFLAGS) -c -o clientManagerNoSSLv3NoTSLv1.o clientManager.c  -DOPENSSL_SSL_METHOD=TLSv1_2_server_method\(\)
+
+clientManagerMD5.o: clientManager.c clientManager.h
+	$(CC) $(CFLAGS) -c -o clientManagerMD5.o clientManager.c -DOPENSSL_CIPHER_USED=\"MD5\"
 
 clean:
 	$(RM) $(targets) $(sources:.c=.o) *~

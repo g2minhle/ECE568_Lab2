@@ -1,0 +1,39 @@
+openssl req -new -x509 -extensions v3_ca -keyout privateCAKey.pem -out 568ca.pem -days 365
+password
+CA
+Ontario
+Toronto
+g2minhleInc
+g2minhleDiv
+g2minhle.utoronto.ca
+g2minhle@utoronto.ca
+
+openssl req -new -nodes -out serverSignRequest.pem -keyout individualPrivateKey.pem -days 365
+CA
+Ontario
+Toronto
+g2minhle2Inc
+g2minhle2Div
+Bob's Server
+ece568bob2@ecf.utoronto.ca
+challengePassword
+optionalCompanyName
+
+openssl req -new -nodes -out serverSignRequest2.pem -keyout individualPrivateKey2.pem -days 365
+CA
+Ontario
+Toronto
+g2minhle3Inc
+g2minhle3Div
+Alice
+ece568alice@ecf.utoronto.ca
+challengePassword
+optionalCompanyName
+
+openssl ca -in serverSignRequest.pem -out serverSignedCert.pem -keyfile privateCAKey.pem -days 365 -cert 568ca.pem -outdir "./openSSL/storage" -config ./openSSL.cnf
+openssl ca -in serverSignRequest2.pem -out serverSignedCert2.pem -keyfile privateCAKey.pem -days 365 -cert 568ca.pem -outdir "./openSSL/storage" -config ./openSSL.cnf
+
+cat serverSignedCert.pem individualPrivateKey.pem > bob.pem
+cat serverSignedCert2.pem individualPrivateKey2.pem > alice.pem
+
+openssl verify -CAfile publicCertCA.pem serverSignedCert.pem
