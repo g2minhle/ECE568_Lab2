@@ -53,43 +53,6 @@ void* myRealloc(void *ptr, size_t size, char* error_message){
 }
 
 /*
- * If read successfuly executed then the function behave like normal read
- * If there is an error, the function wil terminate the program and print out the error
- *
- * fd : int - the file descriptor
- * buf : void* - the buffer
- * count : size_t - the number of bytes
- * return : ssize_t - the succesfull number of bytes read
- */
-ssize_t myRead(int fd, void *buf, size_t count){
-	int result = read(fd, buf, count);
-	if (result < 0){
-		perror("read error");
-		exit(1);
-	}
-	return result;
-}
-
-/*
- * If write successfuly executed then the function behave like normal write
- * If there is an error, the function wil terminate the program and print out the error
- *
- * fd : int - the file descriptor
- * buf : void* - the buffer
- * count : size_t - the number of bytes want to be written
- * return : ssize_t - the succesfull number of bytes written
- */
-ssize_t myWrite(int fd, void *buf, size_t count){
-	int result = write(fd, buf, count);
-	if (result < 0){
-		perror("read error");
-		exit(1);
-	}
-	return result;
-}
-
-
-/*
  * If accept successfuly executed then the function behave like normal accept
  * If there is an error, the function wil terminate the program and print out the error
  *

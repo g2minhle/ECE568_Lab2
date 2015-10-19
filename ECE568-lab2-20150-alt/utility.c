@@ -54,3 +54,7 @@ char* buildString( const char * format, ... ){
 	return outputString;
 }
 
+void printErrorThenQuit(const char* errorMessage){
+	printf(errorMessage);
+	exit(1);
+}

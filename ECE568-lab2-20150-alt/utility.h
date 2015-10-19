@@ -10,4 +10,5 @@
 	int** createIntMatrix(int rowCount, int columnCount);
 	char* buildString( const char * format, ... );
 	char* addString(char* stringA, char* stringB, int freeSignal);
+	void printErrorThenQuit(const char* errorMessage);
 #endif 
