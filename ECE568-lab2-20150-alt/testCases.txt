@@ -1,0 +1,13 @@
+client side:
+	+ Server does not support SSLv3 or TLSv1
+	+ Server does not support SHA1
+	+ No certificate ? 
+	+ Wrong server common name 
+	+ Wrong email name 
+	+ Not signed certificate 
+	+ Wrong certificate 
+	+ Premature close
+Server side:
+	+ Client was not signed by a special CA
+	+ Client does not have a certificate
+	+ incomplete shutdown
