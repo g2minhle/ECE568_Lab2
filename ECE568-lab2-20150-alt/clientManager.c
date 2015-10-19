@@ -1,5 +1,88 @@
 #include "clientManager.h"
 
+void terminateDuringSSLContextCreation(ClientManager* clientManager, char* errorMessage){
+	printf(errorMessage);
+	ERR_print_errors_fp (stdout);
+	if(clientManager->sslContext != NULL){
+		SSL_CTX_free(clientManager->sslContext);
+	}
+	exit(1);
+}
+
+int isSSLCertificateValid(SSL* clientSSL){
+
+	X509* clientCertificate;
+	char clientEmail[EMAIL_LENGTH];
+	char clientCommonName[COMMON_NAME_LENGTH];
+	int NID_email = OBJ_txt2nid("emailAddress");
+	if(SSL_get_verify_result(clientSSL) != X509_V_OK){
+		/* something not right */
+		printf(FMT_ACCEPT_ERR_WITHOUT_LINEBREAK);
+		ERR_print_errors_fp (stdout);
+		return 0;
+	} 
+	/*Check the cert chain. The chain length is automatically checked by OpenSSL when
+	we set the verify depth in the ctx */
+
+	/*Check the common name*/
+	clientCertificate = SSL_get_peer_certificate(clientSSL);
+	X509_NAME* clientSubjectName = X509_get_subject_name(clientCertificate);
+	X509_NAME_get_text_by_NID(clientSubjectName, NID_email, clientEmail, EMAIL_LENGTH);
+	X509_NAME_get_text_by_NID(clientSubjectName, NID_commonName, clientCommonName, COMMON_NAME_LENGTH);
+
+	//assertServerData(clientContext, clientEmail, SERVER_EMAIL, FMT_EMAIL_MISMATCH);
+	//assertServerData(clientContext, clientCommonName, SERVER_COMMON_NAME, FMT_CN_MISMATCH);
+
+	printf(FMT_CLIENT_INFO, clientCommonName, clientEmail);
+	return 1;
+}
+
+
+
+/* Init ssl context for server
+ *
+ * clientManager : ClientManager* - the client manager
+ * return : void
+ */
+void initOpenSSL(ClientManager* clientManager){
+	// Register the error strings for libcrypto & libssl
+	SSL_load_error_strings ();
+	// Register the available ciphers and digests
+	SSL_library_init ();
+
+	printf("Done load OpenSSL lib\n");
+
+	// New context saying we are a client, and using SSL 2 or 3 or hihger
+	clientManager->sslContext = SSL_CTX_new(OPENSSL_SSL_METHOD);
+	if (clientManager->sslContext == NULL){
+		terminateDuringSSLContextCreation(clientManager, "Can't create ssl context\n");
+	}
+	
+	SSL_CTX_set_verify(clientManager->sslContext, SSL_VERIFY_PEER | SSL_VERIFY_CLIENT_ONCE | SSL_VERIFY_FAIL_IF_NO_PEER_CERT, NULL);
+	printf("Done create OpenSSl context\n");
+	SSL_CTX_set_cipher_list(clientManager->sslContext, OPENSSL_CIPHER_USED);
+	printf("Done set cipher list\n");
+
+	if(!(SSL_CTX_use_certificate_chain_file(clientManager->sslContext, SERVER_CERT_FILE))){
+		terminateDuringSSLContextCreation(clientManager, "Can't read certificate file\n");
+	}
+	printf("Done loading certificate file\n");
+
+	//TODO : find how to set password and where to set password
+	//SSL_CTX_set_default_passwd_cb(clientManager->sslContext, "password");
+
+	if(!(SSL_CTX_use_PrivateKey_file(clientManager->sslContext, SERVER_KEY_FILE, SSL_FILETYPE_PEM))){
+		terminateDuringSSLContextCreation(clientManager, "Can't read key file");
+	}	
+	printf("Done loading key file\n");
+
+	if(!(SSL_CTX_load_verify_locations(clientManager->sslContext, SERVER_CA_FILE, 0))){
+		terminateDuringSSLContextCreation(clientManager, "Can't read CA list");
+	}
+	printf("Done loading CA file\n");
+
+}
+
 /* Prepare for the connection for the client manager
  *
  * clientManager : ClientManager* - the client manager
@@ -24,20 +107,21 @@ void prepareConnection(ClientManager* clientManager){
 	clientManager->socketFD = socketFD;
 }
 
-/* Write a message to the file descriptor 
+/* Write a message to a client
  * then free the message string if beiing told to do so
  *
- * fd : int - the file descriptor
+ * client : Client* - the client
  * message : char* - the message want to be sent
  * willFreeString : int - either FREE_STRING or NOT_FREE_STRING
  *                        indicating if the message should be free afterward
  * return : void
  */
-void sendMessage(int fd, char* message, int willFreeString){
+void sendMessageToClient(Client* client, char* message, int willFreeString){
+	printf("Sending a \"%s\" to client\n", message);
 	int len = strlen(message);
 	char endMessage[2] = "\r\n";
-	myWrite(fd, message, len);
-	myWrite(fd, endMessage, 2);
+	SSL_write(client->ssl, message, len);
+	SSL_write(client->ssl, endMessage, 2);
 	if (willFreeString == FREE_STRING){
 		free(message);
 	}
@@ -50,7 +134,6 @@ void sendMessage(int fd, char* message, int willFreeString){
  */
 void clearClientInfo(Client* client){
 	client->soc = -1; /* -1 indicates available entry */
-	client->curpos = 0;
 	client->hasName = 0;
 	client->curpos = 0;
 	client->buf[0] = '\0';
@@ -67,6 +150,7 @@ void intiManager(ClientManager* clientManager){
 	Client* clients = clientManager->clients;
 	fd_set* allSet = &(clientManager->allSet);
 	// Prepare connection
+	initOpenSSL(clientManager);
 	prepareConnection(clientManager);
 	FD_ZERO(allSet);
 	FD_SET(clientManager->socketFD, allSet);
@@ -75,6 +159,7 @@ void intiManager(ClientManager* clientManager){
 	}
 	clientManager->maxFD = clientManager->socketFD;
 	clientManager->maxI = -1;
+	printf("Start waiting for client\n");
 }
 
 /* Add a client to the client manager
@@ -83,28 +168,32 @@ void intiManager(ClientManager* clientManager){
  * fd : int - the file descriptor of the new client
  * return : void 
  */
-void addClient(ClientManager* clientManager, int fd){
-	int i;
+void addClient(ClientManager* clientManager, int fd, SSL* clientSSL){
+	int i;	
 	Client* clients = clientManager->clients;
 	for (i = 0; i < MAXCLIENTS; i++){
 		if (clients[i].soc < 0) {
-			/* save descriptor */
-			clients[i].soc = fd;
+			/* save descriptor */				
 			FD_SET(fd, &(clientManager->allSet));
 			if (clientManager->maxFD < fd)
 				clientManager->maxFD = fd;
 			if (clientManager->maxI < i) 
 				clientManager->maxI = i;
-			sendMessage(fd, "What is your name?", NOT_FREE_STRING);
+			clients[i].soc = fd;
+			clients[i].ssl = clientSSL;
 			break;
 		}
 	}
 	if (i == MAXCLIENTS) {
 		// too many clients
 		// send a reject message
-		sendMessage(fd, "We are sorry :( We are having too many clients", NOT_FREE_STRING);
+		Client mockClient;
+		mockClient.ssl = clientSSL;
+		sendMessageToClient(&mockClient, "We are sorry :( We are having too many clients", NOT_FREE_STRING);
 		// close connection right away
 		myClose(fd);
+		SSL_shutdown(clientSSL);
+		SSL_free(clientSSL);
 	}
 }
 
@@ -158,6 +247,11 @@ int findMaxI(ClientManager* clientManager){
  */
 void removeClient(ClientManager* clientManager, int index){
 	Client* client = &(clientManager->clients[index]);
+	if(client->ssl != NULL){
+		// shutdown SSL
+		SSL_shutdown(client->ssl);
+		SSL_free(client->ssl);
+	}
 	// close connection
 	myClose(client->soc);
 	// remove of the list of FD
@@ -197,11 +291,13 @@ char* findEndOfCommand(char*  bufer){
  */
 int readfromclient(Client *c, char** outputString) {
 	char* startptr = &(c->buf[c->curpos]);
-	int readLen = read(c->soc, startptr, MAXLINE - c->curpos);
+	int readLen = SSL_read(c->ssl, startptr, MAXLINE - c->curpos);
+	printf("Read %d character from client\n", readLen);
 	int leftOverLength;
 	char* endOfCommand;
 	if(readLen == 0) {
 		// Connection closed by client
+		printf("Client closed the connection\n");
 		return 1;
 	} else {
 		c->curpos += readLen;
@@ -217,6 +313,12 @@ int readfromclient(Client *c, char** outputString) {
 			// to beginning.
 			memmove(c->buf, endOfCommand + 1, leftOverLength + 1);
 			c->curpos = leftOverLength;
+			/*
+			sigfault creator*/
+			//int* a = (int*)1;
+			//*a = 1;
+			//close(c->soc);
+			
 			return 0;
 		}
 		return 2;
@@ -233,14 +335,33 @@ int readfromclient(Client *c, char** outputString) {
  *                   that have information waiting to be read
  */
 fd_set getClientRespond(ClientManager* clientManager){
+	int retVal;
 	int clientFD;
 	fd_set readSet = clientManager->allSet;	
 	mySelect(clientManager->maxFD + 1 , &readSet);
 	// if there is a client want to connect
 	if (FD_ISSET(clientManager->socketFD, &readSet)){	
+		printf("Accepting client\n");
 		// accept the new client 
-		clientFD = myAccept(clientManager->socketFD);
-		addClient(clientManager, clientFD);
+		clientFD = accept(clientManager->socketFD, NULL, NULL);
+		if ( clientFD < 0) {
+			printf("Failed accepting tcp client\n");			
+		} else {
+			printf("Done accepting tcp client\n");
+			SSL* clientSSL = SSL_new(clientManager->sslContext);
+			SSL_set_fd(clientSSL, clientFD);
+			retVal = SSL_accept(clientSSL);
+			// verityfy the 
+			if(retVal == 1 && isSSLCertificateValid(clientSSL) ){
+				printf("Done accepting client\n");
+				addClient(clientManager, clientFD, clientSSL);
+								printf("c\n");
+			} else {
+				printf("Failed accepting client\n");
+				SSL_free(clientSSL);
+				close(clientFD);
+			}
+		}
 	}
 	return readSet;
 }	
