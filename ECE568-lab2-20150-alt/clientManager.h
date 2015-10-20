@@ -45,11 +45,16 @@
 	#define COMMON_NAME_LENGTH 256
 	#define EMAIL_LENGTH 256
 	
-	#define OPENSSL_CIPHER_USED "ALL"
+	#ifndef OPENSSL_CIPHER_USED
+		#define OPENSSL_CIPHER_USED "ALL"
+	#endif
+	
 	#define SERVER_KEY_FILE "bob.pem"
 	#define SERVER_CERT_FILE "bob.pem"
 	#define SERVER_CA_FILE "568ca.pem"
-	#define OPENSSL_SSL_METHOD SSLv23_server_method()
+	#ifndef OPENSSL_SSL_METHOD
+		#define OPENSSL_SSL_METHOD SSLv23_server_method()
+	#endif
 
 	typedef struct {
 		int soc;
@@ -73,7 +78,7 @@
 
 	void intiManager(ClientManager* clientManager);
 	fd_set getClientRespond(ClientManager* clientManager);
-	void sendMessageToClient(Client* clients, char* message, int willFreeString);	
+	void sendMessageToClient(Client* clients, char* message, int len, int willFreeString);	
 	void removeClient(ClientManager* clientManager, int index);
 	int readfromclient(Client *c, char** outputString);
 	void setName(Client* client, char* userName);

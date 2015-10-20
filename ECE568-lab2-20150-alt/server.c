@@ -8,7 +8,7 @@
 void processUserInput(ClientManager* clientManager, char* userInput, int i){
 	Client* currentClient = &(clientManager->clients[i]);
 	char* respondMessage = "(And this is the respond message)";
-	sendMessageToClient(currentClient, respondMessage, NOT_FREE_STRING);
+	sendMessageToClient(currentClient, respondMessage, 33, NOT_FREE_STRING);
 	printf(FMT_OUTPUT, userInput, respondMessage);
 }
 

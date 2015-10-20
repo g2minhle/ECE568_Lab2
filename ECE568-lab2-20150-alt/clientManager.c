@@ -112,19 +112,26 @@ void prepareConnection(ClientManager* clientManager){
  *
  * client : Client* - the client
  * message : char* - the message want to be sent
+ * len : int - the message len
  * willFreeString : int - either FREE_STRING or NOT_FREE_STRING
  *                        indicating if the message should be free afterward
  * return : void
  */
-void sendMessageToClient(Client* client, char* message, int willFreeString){
+void sendMessageToClient(Client* client, char* message, int len, int willFreeString){
 	printf("Sending a \"%s\" to client\n", message);
-	int len = strlen(message);
-	char endMessage[2] = "\r\n";
-	SSL_write(client->ssl, message, len);
-	SSL_write(client->ssl, endMessage, 2);
+	char* fullMess = (char*)malloc(len + 2);
+	strncpy(fullMess, message, len);
+	strncat(fullMess, "\r\n", 2);
+	if(SSL_write(client->ssl, fullMess, len + 2) <= 0) {
+		SSL_free(client->ssl);
+		client->ssl = NULL;
+		printf(FMT_INCOMPLETE_CLOSE);
+	}
+	
 	if (willFreeString == FREE_STRING){
 		free(message);
 	}
+	free(fullMess);
 }
 
 /* Clear all information relating to the client to remove the client
@@ -189,7 +196,7 @@ void addClient(ClientManager* clientManager, int fd, SSL* clientSSL){
 		// send a reject message
 		Client mockClient;
 		mockClient.ssl = clientSSL;
-		sendMessageToClient(&mockClient, "We are sorry :( We are having too many clients", NOT_FREE_STRING);
+		sendMessageToClient(&mockClient, "We are sorry :( We are having too many clients", 46, NOT_FREE_STRING);
 		// close connection right away
 		myClose(fd);
 		SSL_shutdown(clientSSL);
@@ -246,10 +253,16 @@ int findMaxI(ClientManager* clientManager){
  * return : void
  */
 void removeClient(ClientManager* clientManager, int index){
+	/*TODO exit here for premature*/
 	Client* client = &(clientManager->clients[index]);
 	if(client->ssl != NULL){
 		// shutdown SSL
-		SSL_shutdown(client->ssl);
+		/*TODO exit Comment out here for premature close */
+		if( SSL_shutdown(client->ssl) <= 0){
+			if( SSL_shutdown(client->ssl) <= 0){
+				printf(FMT_INCOMPLETE_CLOSE);
+			}
+		}
 		SSL_free(client->ssl);
 	}
 	// close connection
@@ -298,6 +311,9 @@ int readfromclient(Client *c, char** outputString) {
 	if(readLen == 0) {
 		// Connection closed by client
 		printf("Client closed the connection\n");
+		SSL_free(c->ssl);
+		c->ssl = NULL;
+		printf(FMT_INCOMPLETE_CLOSE);
 		return 1;
 	} else {
 		c->curpos += readLen;
@@ -351,11 +367,11 @@ fd_set getClientRespond(ClientManager* clientManager){
 			SSL* clientSSL = SSL_new(clientManager->sslContext);
 			SSL_set_fd(clientSSL, clientFD);
 			retVal = SSL_accept(clientSSL);
+			/*TODO exit here for premature*/
 			// verityfy the 
 			if(retVal == 1 && isSSLCertificateValid(clientSSL) ){
 				printf("Done accepting client\n");
 				addClient(clientManager, clientFD, clientSSL);
-								printf("c\n");
 			} else {
 				printf("Failed accepting client\n");
 				SSL_free(clientSSL);

@@ -2,9 +2,14 @@
 
 ClientContext clientContext;
 
-void shutdownClient(ClientContext* clientContext){
+void shutdownClient(ClientContext* clientContext){	
 	if(clientContext->ssl != NULL) {
-		SSL_shutdown(clientContext->ssl);
+		/* TODO comment here for incomplete shutdown */
+		if( SSL_shutdown(clientContext->ssl) <= 0){
+			if( SSL_shutdown(clientContext->ssl) <= 0){
+				printf(FMT_INCORRECT_CLOSE);
+			}
+		}
 		SSL_free(clientContext->ssl);
 	}
 	if(clientContext->sslContext != NULL){
@@ -13,10 +18,14 @@ void shutdownClient(ClientContext* clientContext){
 	close(clientContext->sock);
 }
 
-void sigpipeHandle(int param){
+void sslMajorIssueHandler(ClientContext* clientContext){
 	printf(FMT_INCORRECT_CLOSE);
-	shutdownClient(&clientContext);
+	shutdownClient(clientContext);
 	exit(1);
+}
+
+void sigpipeHandle(int param){
+	sslMajorIssueHandler(&clientContext);
 }
 
 void terminateDuringSSLContextCreation(ClientContext* clientContext, char* errorMessage){
@@ -220,10 +229,12 @@ int readfromServer(ClientContext* c, char** outputString) {
 	printf("Read %d character from client\n", readLen);
 	int leftOverLength;
 	char* endOfCommand;
-	if(readLen <= 0) {
+	if(readLen < 0) {
 		// Connection closed by client
 		printf("Server closed the connection\n");
-		return 1;
+		/* do ssl shutdown to cause this is cause a sigpipe */
+		shutdownClient(c);
+		return 2;
 	} else {
 		c->curpos += readLen;
 		c->buf[c->curpos] = '\0';
@@ -249,17 +260,21 @@ void transferData(ClientContext* clientContext){
 	char request[REQUEST_MESSAGE_LENGTH] = REQUEST_MESSAGE;
 	strncat(request, "\r\n", 2);
 	printf("Sending request\n");
+	/* TODO exite here for incomplete shutdown */
 	int retVal = SSL_write(clientContext->ssl, request, REQUEST_MESSAGE_LENGTH);
+	if(retVal <= 0){
+		/* Connection is not closed yet, any thing happen is bad*/
+		sslMajorIssueHandler(clientContext);
+	}
 	printf("Done sending request with retVal = %d\n", retVal);
-	if(clientContext->ssl != NULL && retVal > 0){
-		printf("Reading respond\n");
-		while ((retVal = readfromServer(clientContext, &respond)) == 2 ){
-		}
-		if(retVal == 0) {
-			printf(FMT_OUTPUT, REQUEST_MESSAGE, respond);
-			free(respond);
-		}
-	}	
+	printf("Reading respond\n");
+	while ((retVal = readfromServer(clientContext, &respond)) == 2 ){
+	}
+	/* TODO exite here for incomplete shutdown */
+	if(retVal == 0) {
+		printf(FMT_OUTPUT, REQUEST_MESSAGE, respond);
+		free(respond);
+	}
 }
 
 int main(int argc, char **argv)
