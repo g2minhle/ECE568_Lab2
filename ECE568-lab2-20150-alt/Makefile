@@ -5,7 +5,7 @@ LDFLAGS := $(LIBS)
 RM := rm -f
 
 sources := client.c server.c myLib.c utility.c clientManager.c
-targets := client server serverNoSSLv3NoTSLv1 serverMD5 clientNoCert
+targets := client server
 
 .PHONY: clean default all
 
@@ -47,6 +47,8 @@ clientManagerNoSSLv3NoTSLv1.o: clientManager.c clientManager.h
 
 clientManagerMD5.o: clientManager.c clientManager.h
 	$(CC) $(CFLAGS) -c -o clientManagerMD5.o clientManager.c -DOPENSSL_CIPHER_USED=\"MD5\"
+	
+testClientAndServer: serverNoSSLv3NoTSLv1 serverMD5 clientNoCert 
 
 clean:
 	$(RM) $(targets) $(sources:.c=.o) *~ *.o
