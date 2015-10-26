@@ -12,10 +12,10 @@ openssl req -new -nodes -out serverSignRequest.pem -keyout individualPrivateKey.
 CA
 Ontario
 Toronto
-g2minhleInc
-g2minhleDiv
-g2minhle.utoronto.ca
-g2minhle@utoronto.ca
+g2minhle2Inc
+g2minhle2Div
+g2minhle2.utoronto.ca
+g2minhle2@utoronto.ca
 challengePassword
 optionalCompanyName 
 

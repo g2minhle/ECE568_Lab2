@@ -55,17 +55,19 @@ void initOpenSSL(ClientContext* clientContext){
 	SSL_CTX_set_options(clientContext->sslContext, SSL_OP_NO_SSLv2);
 	SSL_CTX_set_options(clientContext->sslContext, SSL_OP_NO_TLSv1_1);
 	SSL_CTX_set_options(clientContext->sslContext, SSL_OP_NO_TLSv1_2);
-	SSL_CTX_set_verify(clientContext->sslContext, SSL_VERIFY_PEER | SSL_VERIFY_CLIENT_ONCE | SSL_VERIFY_FAIL_IF_NO_PEER_CERT, NULL);
+	SSL_CTX_set_verify(clientContext->sslContext, OPENSSL_SSL_SETTING, NULL);
 
 	printf("Done create OpenSSl context\n");
 
 	SSL_CTX_set_cipher_list(clientContext->sslContext, OPENSSL_CIPHER_USED);
 	printf("Done set cipher list\n");
 
-	if(!(SSL_CTX_use_certificate_chain_file(clientContext->sslContext, SERVER_CERT_FILE))){
-		terminateDuringSSLContextCreation(clientContext, "Can't read certificate file\n");
+	if (OPENSSL_LOAD_CERT){
+		if(!(SSL_CTX_use_certificate_chain_file(clientContext->sslContext, SERVER_CERT_FILE)) ){
+			terminateDuringSSLContextCreation(clientContext, "Can't read certificate file\n");
+		}
+		printf("Done loading certificate file\n");
 	}
-	printf("Done loading certificate file\n");
 
 	//TODO : find how to set password and where to set password
 	//SSL_CTX_set_default_passwd_cb(clientContext->sslContext, "password");
@@ -163,11 +165,15 @@ void establishSSLConnection(ClientContext* clientContext){
      		|| lastErrorCode == OPENSSEL_PROTOCOL_SSLV2_ERROR){
 			// protocol issue
 			printf(FMT_CONNECT_ERR_WITH_LINE_BREAK);	
+		} else if (lastErrorCode == OPENSSEL_CERT_ERROR){
+			printf(FMT_NO_VERIFY);
 		} else {
 			// some others issues (cipher type)
 			printf(FMT_CONNECT_ERR_WITHOUT_LINE_BREAK);
 			ERR_print_errors_fp (stdout);
 		}		
+		SSL_free(clientContext->ssl);
+		clientContext->ssl = NULL;
 		shutdownClient(clientContext);
 		exit(1);
 	}	

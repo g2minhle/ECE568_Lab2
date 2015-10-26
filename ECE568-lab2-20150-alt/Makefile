@@ -5,7 +5,7 @@ LDFLAGS := $(LIBS)
 RM := rm -f
 
 sources := client.c server.c myLib.c utility.c clientManager.c
-targets := client server serverNoSSLv3NoTSLv1 serverMD5
+targets := client server serverNoSSLv3NoTSLv1 serverMD5 clientNoCert
 
 .PHONY: clean default all
 
@@ -14,6 +14,9 @@ all: utility.o myLib.o clientManager.o $(targets)
 
 client: client.o myLib.o utility.o
 	$(CC) $(LDFLAGS) -o client client.o myLib.o utility.o
+
+clientNoCert: clientNoCert.o myLib.o utility.o
+	$(CC) $(LDFLAGS) -o clientNoCert client.o myLib.o utility.o
 
 server: server.o myLib.o utility.o clientManager.o
 	$(CC) $(LDFLAGS) -o server server.o myLib.o utility.o clientManager.o
@@ -26,6 +29,9 @@ serverMD5: server.o myLib.o utility.o clientManagerMD5.o
 
 client.o: client.c client.h
 	$(CC) $(CFLAGS) -c -o client.o client.c
+
+clientNoCert.o: client.c client.h
+	$(CC) $(CFLAGS) -c -o client.o client.c -DOPENSSL_LOAD_CERT=0
 
 server.o: server.c server.h
 	$(CC) $(CFLAGS) -c -o server.o  server.c
@@ -43,5 +49,5 @@ clientManagerMD5.o: clientManager.c clientManager.h
 	$(CC) $(CFLAGS) -c -o clientManagerMD5.o clientManager.c -DOPENSSL_CIPHER_USED=\"MD5\"
 
 clean:
-	$(RM) $(targets) $(sources:.c=.o) *~
+	$(RM) $(targets) $(sources:.c=.o) *~ *.o
 

@@ -17,8 +17,6 @@ int isSSLCertificateValid(SSL* clientSSL){
 	int NID_email = OBJ_txt2nid("emailAddress");
 	if(SSL_get_verify_result(clientSSL) != X509_V_OK){
 		/* something not right */
-		printf(FMT_ACCEPT_ERR_WITHOUT_LINEBREAK);
-		ERR_print_errors_fp (stdout);
 		return 0;
 	} 
 	/*Check the cert chain. The chain length is automatically checked by OpenSSL when
@@ -373,6 +371,8 @@ fd_set getClientRespond(ClientManager* clientManager){
 				printf("Done accepting client\n");
 				addClient(clientManager, clientFD, clientSSL);
 			} else {
+				printf(FMT_ACCEPT_ERR_WITHOUT_LINEBREAK);
+				ERR_print_errors_fp (stdout);
 				printf("Failed accepting client\n");
 				SSL_free(clientSSL);
 				close(clientFD);
