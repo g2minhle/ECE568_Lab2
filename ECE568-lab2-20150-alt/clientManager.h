@@ -55,6 +55,9 @@
 	#ifndef OPENSSL_SSL_METHOD
 		#define OPENSSL_SSL_METHOD SSLv23_server_method()
 	#endif
+	
+	#define PRIVATE_KEY_PASSWORD "password"
+	#define PRIVATE_KEY_PASSWORD_LENGTH 8
 
 	typedef struct {
 		int soc;

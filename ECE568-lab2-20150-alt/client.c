@@ -18,6 +18,12 @@ void shutdownClient(ClientContext* clientContext){
 	close(clientContext->sock);
 }
 
+int passwd_cb(char *buf,int size, int rwflag,void *userdata)
+{
+	strncpy(buf, PRIVATE_KEY_PASSWORD, PRIVATE_KEY_PASSWORD_LENGTH);
+	return PRIVATE_KEY_PASSWORD_LENGTH; 
+}
+
 void sslMajorIssueHandler(ClientContext* clientContext){
 	printf(FMT_INCORRECT_CLOSE);
 	shutdownClient(clientContext);
@@ -70,7 +76,7 @@ void initOpenSSL(ClientContext* clientContext){
 	}
 
 	//TODO : find how to set password and where to set password
-	//SSL_CTX_set_default_passwd_cb(clientContext->sslContext, "password");
+	SSL_CTX_set_default_passwd_cb(clientContext->sslContext, passwd_cb);
 
 	if(!(SSL_CTX_use_PrivateKey_file(clientContext->sslContext, SERVER_KEY_FILE, SSL_FILETYPE_PEM))){
 		terminateDuringSSLContextCreation(clientContext, "Can't read key file");

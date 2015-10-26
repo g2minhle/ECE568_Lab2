@@ -35,6 +35,11 @@ int isSSLCertificateValid(SSL* clientSSL){
 	return 1;
 }
 
+int passwd_cb(char *buf,int size, int rwflag,void *userdata)
+{
+	strncpy(buf, PRIVATE_KEY_PASSWORD, PRIVATE_KEY_PASSWORD_LENGTH);
+	return PRIVATE_KEY_PASSWORD_LENGTH; 
+}
 
 
 /* Init ssl context for server
@@ -67,7 +72,8 @@ void initOpenSSL(ClientManager* clientManager){
 	printf("Done loading certificate file\n");
 
 	//TODO : find how to set password and where to set password
-	//SSL_CTX_set_default_passwd_cb(clientManager->sslContext, "password");
+	SSL_CTX_set_default_passwd_cb(clientManager->sslContext, passwd_cb);
+	
 
 	if(!(SSL_CTX_use_PrivateKey_file(clientManager->sslContext, SERVER_KEY_FILE, SSL_FILETYPE_PEM))){
 		terminateDuringSSLContextCreation(clientManager, "Can't read key file");
