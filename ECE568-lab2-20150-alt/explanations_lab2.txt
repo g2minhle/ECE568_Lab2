@@ -1,0 +1,29 @@
+#Abegail Jakop, 998863118, abegail.jakop@mail.utoronto.ca
+#Minh Hoang Le, 999019930, minh.lehoang@mail.utoronto.ca
+
+We decided on using Minh's CSC209 client and server code as it would be one
+less thing to read through and comprehend the flow. We pieced together some
+pieces of the provided code to have a functioning client and server.
+
+The client side code is in client.c. We use struct ClientContext to store both
+the OpenSSL context and the SSL struct.
+
+The initOpenSSL() in client.c sets up the OpenSSL context by specifiying that
+the client is to support SSLv3 and TLSv1Within checkSSLCertificateValid(),
+the server's certificate is validated, and the server's common name and email
+address are checked if they match what's expected.
+
+Proper client-side shutdown is managed in shutdownClient().
+
+The server functionality is mainly in clientManager.c with minimal code in
+server.c.
+
+The initOpenSSL() in clientManager.c sets up the OpenSSL context by specifiying that
+the server is to support SSLv2, SSLv1, and TLSv1. Accepting a client occurs in
+getClientRespond() where the client's certificate is validated and the common
+name and email address are checked.
+
+A premature shutdown is checked in removeClient(), where we attemt to properly
+shutdown the SSL connection twice, after which an imcomplete shutdown message is
+outputted if the connection could not be properly shutdown.
+
