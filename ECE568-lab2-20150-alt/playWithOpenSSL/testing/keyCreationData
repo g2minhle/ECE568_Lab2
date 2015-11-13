@@ -1,4 +1,4 @@
-openssl req -new -x509 -extensions v3_ca -keyout privateCAKey.pem -out publicCertCA.pem -days 365
+openssl req -new -x509 -extensions v3_ca -keyout privateCAKey.pem -out publicCertCA.pem -sha256 -days 365
 password
 CA
 Ontario
@@ -8,7 +8,7 @@ g2minhleDiv
 g2minhle.utoronto.ca
 g2minhle@utoronto.ca
 
-openssl req -new -nodes -out serverSignRequest.pem -keyout individualPrivateKey.pem -days 365
+openssl req -new -nodes -out serverSignRequest.pem -keyout individualPrivateKey.pem -sha256 -days 365
 CA
 Ontario
 Toronto
